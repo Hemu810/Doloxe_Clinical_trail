@@ -1,50 +1,65 @@
-# app.py
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
-import requests
-import os
-import json
-from datetime import datetime, timedelta
+# app.py (updated fetch_trials_from_clinicaltrials_gov function)
+# ... (imports and Flask app setup remain the same) ...
 
-app = Flask(__name__, static_folder="public", static_url_path="/static")
-CORS(app) # Enable CORS for all routes
-
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-
-# --- Utility Functions (keep this as the v2 API version) ---
+# --- Utility Functions ---
 def fetch_trials_from_clinicaltrials_gov(condition, months_back_filter):
-    # ... (This function remains exactly as I provided in the previous full app.py code) ...
+    """
+    Fetches clinical trials data for a single condition from ClinicalTrials.gov API (v2).
+    Filters results by last update date AFTER fetching, based on months_back_filter.
+    """
     base_url = "https://clinicaltrials.gov/api/v2/studies"
-    date_cutoff = (datetime.today() - timedelta(days=30 * months_back_filter)).strftime("%Y-%m-%d")
+    
+    # Calculate the date cutoff for filtering *after* fetching
+    date_cutoff = datetime.today() - timedelta(days=30 * months_back_filter)
+
+    # Parameters for the v2 API.
+    # ONLY send parameters that the API accepts directly in the query string.
+    # We are REMOVING the 'filter' parameter from the API call.
     base_params = {
         "query.cond": condition,
-        "pageSize": 100,
-        "filter.lastUpdatePostDate.gte": date_cutoff
+        "pageSize": 100, # Max page size allowed by API for a single request
     }
     
     data_list = []
     nextPageToken = None
     page_count = 0
-    max_pages = 5 
+    max_pages = 5 # Limit the number of pages to fetch to prevent excessive requests
 
     while True:
         params = base_params.copy()
         if nextPageToken:
-            params['pageToken'] = nextPageToken
+            params['pageToken'] = nextPageToken # Add pageToken for subsequent requests
 
         try:
             response = requests.get(base_url, params=params, timeout=30)
-            response.raise_for_status()
+            response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
             data = response.json()
 
             studies = data.get("studies", [])
             if not studies:
-                break
+                break # No more studies to fetch or no results for the current page
 
             for study in studies:
                 protocol_section = study.get('protocolSection', {})
-                identification_module = protocol_section.get('identificationModule', {})
                 status_module = protocol_section.get('statusModule', {})
+                
+                # *** Perform date filtering in Python after fetching ***
+                lastUpdatePostDate_str = status_module.get('lastUpdatePostDateStruct', {}).get('date', '')
+                
+                if not lastUpdatePostDate_str:
+                    continue # Skip studies without a valid last update date
+
+                try:
+                    last_update_date_obj = datetime.strptime(lastUpdatePostDate_str, "%Y-%m-%d")
+                except ValueError:
+                    continue # Skip if date format is incorrect
+
+                if last_update_date_obj < date_cutoff:
+                    continue # Skip if the study is older than the filter timeframe
+
+
+                # --- Data Extraction (remains the same as previous correct v2 parsing) ---
+                identification_module = protocol_section.get('identificationModule', {})
                 conditions_module = protocol_section.get('conditionsModule', {})
                 arms_interventions_module = protocol_section.get('armsInterventionsModule', {})
                 design_module = protocol_section.get('designModule', {})
@@ -54,8 +69,10 @@ def fetch_trials_from_clinicaltrials_gov(condition, months_back_filter):
                 acronym = identification_module.get('acronym', 'N/A')
                 overallStatus = status_module.get('overallStatus', 'N/A')
                 studyType = design_module.get('studyType', 'N/A')
+
                 studyFirstPostDate = status_module.get('studyFirstPostDateStruct', {}).get('date', 'N/A')
-                lastUpdatePostDate = status_module.get('lastUpdatePostDateStruct', {}).get('date', 'N/A')
+                # lastUpdatePostDate is already extracted above as lastUpdatePostDate_str
+                
                 conditions = ', '.join(conditions_module.get('conditions', ['No conditions listed']))
 
                 interventions_list = arms_interventions_module.get('interventions', [])
@@ -67,7 +84,7 @@ def fetch_trials_from_clinicaltrials_gov(condition, months_back_filter):
                     "NCT ID": nctId,
                     "Title": title,
                     "Study First Post Date": studyFirstPostDate,
-                    "Last Update Post Date": lastUpdatePostDate,
+                    "Last Update Post Date": lastUpdatePostDate_str, # Use the string date
                     "Acronym": acronym,
                     "Overall Status": overallStatus,
                     "Conditions": conditions,
@@ -100,49 +117,15 @@ def fetch_trials_from_clinicaltrials_gov(condition, months_back_filter):
             print(f"An unexpected error occurred processing data for condition '{condition}': {e}")
             break
 
+    # Sort the collected data by 'Last Update Post Date' in descending order
+    # Ensure all dates are valid before sorting to prevent errors.
     def get_sort_key(item):
         try:
             return datetime.strptime(item["Last Update Post Date"], "%Y-%m-%d")
         except ValueError:
-            return datetime.min
+            return datetime.min # Return a very old date for invalid dates to push them to the end
 
     data_list.sort(key=get_sort_key, reverse=True)
     return data_list
 
-
-# --- Routes ---
-
-@app.route('/')
-def index():
-    return send_from_directory(PROJECT_ROOT, 'index.html')
-
-@app.route('/api')
-def api_health_check():
-    return jsonify({"message": "API is running!", "status": "success"})
-
-
-@app.route('/api/search_trials', methods=['POST'])
-def search_trials():
-    data = request.get_json()
-    query_terms_raw = data.get('query_terms', []) # Default to empty list if not found
-    months_back = data.get('months_back', 3) # Default to 3 months
-
-    # Validate that query_terms_raw is indeed a list
-    if not isinstance(query_terms_raw, list):
-        return jsonify({"error": "Invalid format for 'query_terms'. Expected a list.", "status": "error"}), 400
-
-    # Frontend already splits and trims, so just ensure elements are stripped
-    # and filter out any empty strings that might have resulted from trimming
-    query_terms = [term.strip() for term in query_terms_raw if isinstance(term, str) and term.strip()]
-
-    if not query_terms:
-        return jsonify({"error": "Please enter valid condition(s) to search.", "status": "error"}), 400
-
-    results = {}
-    for term in query_terms:
-        results[term] = fetch_trials_from_clinicaltrials_gov(term, months_back)
-
-    return jsonify(results)
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=os.environ.get('PORT', 5000))
+# ... (rest of the app.py remains the same) ...
