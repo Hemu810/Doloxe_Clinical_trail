@@ -240,7 +240,6 @@ function highlightRecentStudies(trial) {
     }
     return '';
 }
-
 /**
  * Renders the detailed trials table with pagination.
  * @param {Array<Object>} data - The array of trial objects.
