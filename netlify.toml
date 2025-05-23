@@ -1,5 +1,4 @@
 [[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/app"
-  status = 200
-  force = true
+from = "/static/*"
+to = "/static/:splat"
+status = 200
