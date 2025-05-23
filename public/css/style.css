@@ -17,7 +17,6 @@ body {
     min-height: calc(100vh - 110px); /* Total height minus header (60px) and footer (50px) */
 }
 
-
 /* Custom scrollbar for better aesthetics */
 ::-webkit-scrollbar {
     width: 8px;
@@ -96,7 +95,23 @@ body {
     overflow-y: auto; /* Show scrollbar if content exceeds max-height */
 }
 
-/* Custom class for table cell truncation and hover effect */
+/* --- Table Styling Adjustments --- */
+
+/* Specific styling for the NCT ID column (assuming it's the first column in trialsTableBody) */
+#trialsTableBody td:nth-child(1) { /* Assuming NCT ID is the first column */
+    white-space: nowrap; /* Prevent text wrapping */
+    min-width: 120px; /* Ensure minimum width */
+    overflow: visible; /* Prevent hidden overflow */
+    text-overflow: clip; /* Prevent ellipsis */
+}
+
+/* Ensure the table takes full width and allows column widths to adjust */
+#trialsTable { /* Or your main table ID */
+    width: 100%; /* Ensure table takes full width */
+    table-layout: auto; /* Allow column widths to adjust to content */
+}
+
+/* Custom class for generic table cell truncation and hover effect */
 .table-cell-truncate {
     white-space: nowrap; /* Prevent text from wrapping to a new line */
     overflow: hidden; /* Hide any content that overflows the cell */
