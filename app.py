@@ -105,7 +105,7 @@ def fetch_trials_python(condition, months_back_filter):
 @app.route('/')
 def index():
     """Serves the main HTML page from the templates folder."""
-    return render_template('index.html')
+    return render_template('templates/index.html')
 
 @app.route('/api')
 def api_root():
