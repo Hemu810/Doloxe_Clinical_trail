@@ -118,7 +118,8 @@ async function fetchAllTrialsFromBackend(terms, monthsBackFilter) {
     try {
         console.log(`Frontend: Sending monthsBackFilter: ${monthsBackFilter} to backend.`);
 
-        const response = await fetch('/api/search_trials', {
+        // Use the Render deployment URL for your backend API
+        const response = await fetch('https://doloxe-clinical-trail.onrender.com/api/search_trials', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -527,6 +528,19 @@ function handleDownloadCsv() {
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOMContentLoaded event fired. Attempting to initialize months dropdown.");
+
+    // ADDED: Initial fetch to the Render.com API endpoint
+    fetch('https://doloxe-clinical-trail.onrender.com/api')
+        .then(response => {
+            if (!response.ok) {
+                // It's good practice to check response.ok even for simple GET requests
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => console.log("Initial API check successful:", data))
+        .catch(error => console.error("Error during initial API check:", error));
+
 
     // Populate months dropdown
     try {
