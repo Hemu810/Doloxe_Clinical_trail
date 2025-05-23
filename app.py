@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import os
 
 # Initialize Flask app with specified template and static folders
-app = Flask(__name__, template_folder='templates', static_folder='static')
+app = Flask(__name__, static_folder='static')
 
 # --- API Fetching Logic (Python) ---
 def fetch_trials_python(condition, months_back_filter):
