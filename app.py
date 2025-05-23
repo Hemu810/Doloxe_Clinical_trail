@@ -98,12 +98,21 @@ def fetch_trials_python(condition, months_back_filter):
     data_list.sort(key=lambda x: datetime.strptime(x["Last Update Post Date"], "%Y-%m-%d"), reverse=True)
     return data_list
 
-# --- Flask Routes ---
+
+
+### Flask Routes
 
 @app.route('/')
 def index():
     """Serves the main HTML page from the templates folder."""
     return render_template('index.html')
+
+@app.route('/api')
+def api_root():
+    """
+    Returns a simple JSON response to indicate the API is running.
+    """
+    return jsonify({"message": "API is running!", "timestamp": datetime.now().isoformat()})
 
 @app.route('/api/search_trials', methods=['POST'])
 def search_trials():
