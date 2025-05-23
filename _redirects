@@ -1,2 +1,2 @@
 / /templates/index.html 200
-/static/* /static/:splat 200
+/public/* /public/:splat 200

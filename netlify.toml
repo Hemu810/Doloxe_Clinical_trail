@@ -1,4 +1,4 @@
 [[redirects]]
-from = "/static/*"
-to = "/static/:splat"
+from = "/public/*"
+to = "/public/:splat"
 status = 200
