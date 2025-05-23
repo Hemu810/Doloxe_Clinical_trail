@@ -1,4 +1,0 @@
-[[redirects]]
-from = "/public/*"
-to = "/public/:splat"
-status = 200
