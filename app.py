@@ -4,7 +4,7 @@ import requests
 import os
 import json
 
-app = Flask(__name__, static_folder='public', static_url_path='/static')
+app = Flask(__name__, static_folder="public", static_url_path="/public")
 CORS(app) # Enable CORS for all routes
 
 # Define the root directory of your project
