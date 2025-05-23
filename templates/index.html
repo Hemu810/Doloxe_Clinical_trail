@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="description" content="Biopharma data insights partner">
+
+    <title>:: Doloxe :: Clinical Trials</title>
+    <link rel="icon" href="https://admin.doloxe.com/doloxe-favicon.png" type="image/x-icon">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="font-inter bg-gray-100 min-h-screen flex flex-col">
+    <div id="messageBox" class="text-sm"></div>
+
+    <nav class="fixed top-0 left-0 right-0 z-50 p-2 flex items-center justify-between shadow-lg h-14" style="background-color: white; color: black;">
+        <div class="flex items-center">
+            <a href="#" class="text-xl font-semibold flex items-center">
+                <img src="{{ url_for('static', filename='images/doloxe-logo.png') }}" alt="Doloxe" class="h-8 mr-2">
+            </a>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button class="text-white font-bold py-1 px-3 rounded-full text-sm focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" style="background-color: #50d38a;">
+                Sign Out <i class="fas fa-power-off ml-1"></i>
+            </button>
+            <button class="text-white font-bold py-1 px-3 rounded-full text-sm focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" style="background-color: #50d38a;">
+                Setting <i class="fas fa-cog ml-1 animate-spin-slow"></i>
+            </button>
+        </div>
+    </nav>
+
+    <section class="flex-1 main-content-area p-6 relative mt-14">
+        <div class="container-fluid">
+            <div id="main">
+                <div id="background"></div>
+                <div class="row m-0">
+                    <div id="divMainData" class="col-md-12 w-full">
+                        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                            <h2 class="text-xl font-semibold mb-4 text-gray-700">Clinical Trial Search Parameters</h2>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div class="col-span-1">
+                                    <label for="queryInput" class="block text-gray-700 text-sm font-bold mb-2">
+                                        Enter condition(s) to search (comma-separated): <span class="text-red-500">*</span>
+                                    </label>
+                                    <textarea id="queryInput" rows="1"
+                                        class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:border-transparent transition duration-200"
+                                        style="border-color: #50d38a;"
+                                        placeholder="e.g., Diabetes, Hypertension, Cancer"></textarea>
+                                </div>
+
+                                <div class="col-span-1">
+                                    <label for="monthsSelect" class="block text-gray-700 text-sm font-bold mb-2">
+                                        Updated within last (months): <span class="text-red-500">*</span>
+                                    </label>
+                                    <select id="monthsSelect"
+                                        class="block appearance-none w-full bg-white border text-gray-700 py-2 px-3 rounded-lg shadow leading-tight focus:outline-none focus:ring-2 focus:border-transparent transition duration-200"
+                                        style="border-color: #50d38a;">
+                                        </select>
+                                </div>
+
+                                <div class="col-span-1 flex flex-col space-y-3">
+                                    <button id="searchButton"
+                                        class="text-white font-bold py-1 px-3 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105"
+                                        style="background-color: #50d38a;">
+                                        Search
+                                    </button>
+                                    <button id="resetButton"
+                                        class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                                        🔄 Reset Search
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="loadingSpinner" class="hidden flex justify-center items-center py-10">
+                            <div class="spinner"></div>
+                            <p class="ml-4 text-gray-600 text-lg">Fetching data, please wait...</p>
+                        </div>
+
+                        <div id="initialMessage" class="p-4 rounded-lg shadow-sm" style="background-color: #50d38a; border-left: 4px solid #45b377; color: white;">
+                            <p class="font-bold">Welcome!</p>
+                            <p>Enter condition(s) above and press 'Search' to fetch clinical trials data. Results will appear here.</p>
+                            <p class="mt-2 text-sm">
+                                **How to Use:**
+                                <ul class="list-disc list-inside ml-4">
+                                    <li>**Enter Conditions:** Type medical conditions (e.g., `Diabetes, Asthma`) in the text area above.</li>
+                                    <li>**Select Timeframe:** Choose how many months back you want to see updates for.</li>
+                                    <li>**Click Search:** Hit the "Search" button to fetch the data.</li>
+                                    <li>**View Results:** Once fetched, you can select a condition from the dropdown to see its trials, summary, and paginate through results.</li>
+                                </ul>
+                            </p>
+                        </div>
+
+                        <div id="resultsContainer" class="hidden">
+                            <div class="mb-6 bg-white rounded-lg shadow-md p-6">
+                                <label for="selectedQueryDisplay" class="block text-gray-700 text-sm font-bold mb-2">
+                                    Select a condition to view results:
+                                    </label>
+                                <select id="selectedQueryDisplay"
+                                    class="block appearance-none w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg shadow leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                                </select>
+                            </div>
+
+                            <div id="foundTrialsMessage" class="mb-4 text-lg font-medium text-gray-800"></div>
+
+                            <h3 class="text-xl font-semibold mb-3 text-gray-700">📊 Summary: Trial Status, Study Type, and Phase Distribution</h3>
+                            <div class="bg-white rounded-lg shadow-md overflow-x-auto mb-8">
+                                <table id="summaryTable" class="min-w-full divide-y" style="border-color: #50d38a;">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="border: 1px solid #50d38a;">Trial Status</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="border: 1px solid #50d38a;">Count</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="border: 1px solid #50d38a;">Study Type</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="border: 1px solid #50d38a;">Count</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="border: 1px solid #50d38a;">Phase</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="border: 1px solid #50d38a;">Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y" style="border-color: #50d38a;">
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <h3 class="text-xl font-semibold mb-3 text-gray-700">📋 Detailed Trials List</h3>
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <label for="pageSizeInput" class="block text-gray-700 text-sm font-bold mb-2">Rows per page:</label>
+                                    <input type="number" id="pageSizeInput" min="5" max="100" value="25"
+                                        class="shadow appearance-none border rounded-lg py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 w-24">
+                                </div>
+                                <div>
+                                    <label for="pageNumberSelect" class="block text-gray-700 text-sm font-bold mb-2">Go to page:</label>
+                                    <select id="pageNumberSelect"
+                                        class="block appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg shadow leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 w-24">
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-md overflow-x-auto mb-6">
+                                <table id="trialsTable" class="min-w-full divide-y" style="border-color: #50d38a;">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="border: 1px solid #50d38a;">S.No.</th>
+                                            </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y" style="border-color: #50d38a;">
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="flex justify-end mt-4">
+                                <button id="downloadCsvButton"
+                                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                                    ⬇️ Download All Results as CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="fixed bottom-0 left-0 right-0 p-3 text-center text-sm z-50" style="background-color: #50d38a; color: white;">
+        <div class="container mx-auto flex flex-col items-center">
+            <div class="mb-2 sm:mb-0">
+                &reg; 2025 - <span><a class="text-blue-800 hover:underline" href="javascript:void(0)" target="_blank">Doloxe</a></span> | Registered Office: 48 Washington Street, Santa Clara, California
+            </div>
+            <div class="flex space-x-3">
+                Follow us :
+                <a class="text-blue-800 hover:text-black transition duration-150" href="https://twitter.com/AnandRotte?s=08/" target="_blank"><i class="fab fa-twitter-square text-lg"></i></a>
+                <a class="text-blue-800 hover:text-black transition duration-150" href="https://www.linkedin.com/company/doloxe-inc" target="_blank"><i class="fab fa-linkedin text-lg"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
