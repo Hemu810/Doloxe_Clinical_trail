@@ -37,7 +37,7 @@ def fetch_trials_from_clinicaltrials_gov(condition, months_back_filter):
     # We are NOT sending a 'filter' parameter for date to the API request.
     base_params = {
         "query.cond": condition,
-        "pageSize": 100, # Max page size allowed by API for a single request
+        "pageSize": 10000, # Max page size allowed by API for a single request
     }
     
     data_list = []
