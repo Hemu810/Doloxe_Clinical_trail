@@ -1,18 +1,20 @@
 /* style.css */
 
+/* Base body styling, font family, and padding for fixed header/footer */
 body {
     font-family: 'Inter', sans-serif;
     background-color: #f3f4f6; /* Light gray background */
-    padding-top: 60px; /* Height of the fixed header */
-    padding-bottom: 50px; /* Height of the fixed footer */
+    padding-top: 60px; /* Space for the fixed header */
+    padding-bottom: 50px; /* Space for the fixed footer */
 }
 
 /* Ensure the main content area accounts for the fixed header and fixed search container */
+/* This padding-top needs to be adjusted based on the combined height of your fixed nav and the search parameters div.
+   If your nav is 56px, and the search parameters div is, for example, 184px (including its padding/margins),
+   then 56 + 184 = 240px. You might need to fine-tune this value after deployment. */
 .main-content-area {
-    /* Header (56px) + fixedSearchContainer's approx height (e.g., 180px including padding) */
-    /* Adjust this value based on the actual height of your fixed header + fixed search container */
-    padding-top: 240px; /* Example: 56px (header) + 184px (search container + its padding) = 240px */
-    min-height: calc(100vh - 110px); /* Total height minus header and footer */
+    padding-top: 240px; /* Example: 56px (header) + ~184px (search container) = 240px */
+    min-height: calc(100vh - 110px); /* Total height minus header (60px) and footer (50px) */
 }
 
 
@@ -22,33 +24,34 @@ body {
     height: 8px;
 }
 ::-webkit-scrollbar-track {
-    background: #e2e8f0;
+    background: #e2e8f0; /* Light gray track */
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb {
-    background: #94a3b8;
+    background: #94a3b8; /* Medium gray thumb */
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+    background: #64748b; /* Darker gray on hover */
 }
 
-/* Styling for the custom message box */
+/* Styling for the custom message box (used by showMessageBox JS function) */
 #messageBox {
     position: fixed;
-    top: 80px; /* Adjusted for new fixed header */
+    top: 80px; /* Position below the fixed header (nav height 56px + some margin) */
     right: 20px;
-    z-index: 9999;
+    z-index: 9999; /* Ensure it's on top of other content */
     padding: 1rem 1.5rem;
     border-radius: 0.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    display: none; /* Hidden by default */
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-    max-width: 300px;
-    word-wrap: break-word;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    display: none; /* Hidden by default, shown by JavaScript */
+    opacity: 0; /* Start hidden for fade-in effect */
+    transition: opacity 0.3s ease-in-out; /* Smooth fade transition */
+    max-width: 300px; /* Limit width for readability */
+    word-wrap: break-word; /* Prevent long words from overflowing */
 }
 
+/* Specific styling for different message types */
 #messageBox.success {
     background-color: #d1fae5; /* green-100 */
     color: #065f46; /* green-800 */
@@ -69,38 +72,39 @@ body {
     color: #0c4a6e; /* light blue-800 */
 }
 
-/* Loading Spinner */
+/* Loading Spinner styles */
 .spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-left-color: #2563eb; /* blue-600 */
-    border-radius: 50%;
+    border: 4px solid rgba(0, 0, 0, 0.1); /* Light gray border */
+    border-left-color: #2563eb; /* Blue spinning part */
+    border-radius: 50%; /* Make it a circle */
     width: 40px;
     height: 40px;
-    animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite; /* Apply spin animation */
 }
 
+/* Keyframe animation for the spinner */
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-/* Adjusted textarea to behave more like single line input */
+/* Adjusted textarea to behave more like single line input, but allowing expansion */
 #queryInput {
-    resize: vertical; /* Allow vertical resize */
-    min-height: 42px; /* Roughly equivalent to py-2 px-3 of a normal input/select */
-    max-height: 120px; /* Prevent it from getting too tall */
+    resize: vertical; /* Allow vertical resizing by user */
+    min-height: 42px; /* Minimum height, roughly matching other input fields */
+    max-height: 120px; /* Maximum height to prevent excessive expansion */
     overflow-y: auto; /* Show scrollbar if content exceeds max-height */
 }
 
 /* Custom class for table cell truncation and hover effect */
 .table-cell-truncate {
-    white-space: nowrap; /* Prevent text from wrapping */
-    overflow: hidden;    /* Hide overflow content */
-    text-overflow: ellipsis; /* Show ellipsis (...) for truncated text */
-    max-width: 80px; /* Default max-width for all screens */
+    white-space: nowrap; /* Prevent text from wrapping to a new line */
+    overflow: hidden; /* Hide any content that overflows the cell */
+    text-overflow: ellipsis; /* Display "..." for truncated text */
+    max-width: 80px; /* Default max-width for all screens (adjust as needed) */
 }
 
-/* Media queries for table-cell-truncate for pure CSS */
+/* Media queries for responsive table-cell-truncate widths */
 @media (min-width: 768px) { /* Tailwind's md breakpoint */
     .table-cell-truncate {
         max-width: 100px; /* Slightly larger on medium screens */
@@ -112,9 +116,9 @@ body {
     }
 }
 
-/* Specific adjustment for Title column */
-.title-column { /* This needs to be a separate class on the element */
-    max-width: 180px; /* Make title column wider */
+/* Specific adjustment for the Title column in the detailed trials table */
+.title-column { /* This class is applied to the specific <td> element for the title */
+    max-width: 180px; /* Make title column wider than other truncated cells */
 }
 @media (min-width: 768px) {
     .title-column {
@@ -127,9 +131,7 @@ body {
     }
 }
 
-/* Custom styles for the replica design */
-
-/* Header */
+/* Custom animation for the settings icon in the header */
 .animate-spin-slow {
     animation: spin 3s linear infinite; /* Slower spin for settings icon */
 }

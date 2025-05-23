@@ -1,142 +1,128 @@
-# app.py
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 import requests
-from datetime import datetime, timedelta
 import os
+import json
 
-# Initialize Flask app with specified template and static folders
-app = Flask(__name__, static_folder='public')
+app = Flask(__name__, static_folder='public', static_url_path='/static')
+CORS(app) # Enable CORS for all routes
 
-# --- API Fetching Logic (Python) ---
-def fetch_trials_python(condition, months_back_filter):
+# Define the root directory of your project
+# This helps Flask find index.html which is at the same level as app.py
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# --- Utility Functions ---
+def fetch_trials_from_clinicaltrials_gov(query_term, months_back):
     """
-    Fetches clinical trials data for a single condition from ClinicalTrials.gov API.
-    Filters results by last update date.
+    Fetches clinical trial data from ClinicalTrials.gov API.
     """
-    base_url = "https://clinicaltrials.gov/api/v2/studies"
-    base_params = {
-        "query.cond": condition,
-        "pageSize": 1000, # Max page size allowed by API
-    }
-    data_list = []
-    date_cutoff = datetime.today() - timedelta(days=30 * months_back_filter)
-    nextPageToken = None
-    page_count = 0
-    max_pages = 50 # Limit the number of pages to fetch to prevent excessive requests
+    print(f"Fetching trials for '{query_term}' updated in last {months_back} months from ClinicalTrials.gov...")
+    search_expression = f"AREA[Conditions]{query_term} AND MODIFIED_SINCE({months_back})"
+    # Limiting max_rnk for demonstration; remove or increase for full data
+    api_url = f"https://clinicaltrials.gov/api/query/full_studies?expr={search_expression}&fmt=json&max_rnk=200"
 
-    while True:
-        params = base_params.copy()
-        if nextPageToken:
-            params['pageToken'] = nextPageToken
+    try:
+        response = requests.get(api_url, timeout=30) # Add a timeout to prevent hanging
+        response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
+        data = response.json()
 
-        try:
-            response = requests.get(base_url, params=params)
-            response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
-            data = response.json()
+        studies_data = []
+        if data and 'FullStudiesResponse' in data and 'FullStudies' in data['FullStudiesResponse']:
+            for study_wrapper in data['FullStudiesResponse']['FullStudies']:
+                study = study_wrapper['Study']
+                protocol = study.get('Protocol', {})
+                identification_module = protocol.get('IdentificationModule', {})
+                design_module = protocol.get('DesignModule', {})
+                status_module = protocol.get('StatusModule', {})
+                # description_module = protocol.get('DescriptionModule', {}) # Not directly used in current fields
+                eligibility_module = protocol.get('EligibilityModule', {})
+                arms_interventions_module = protocol.get('ArmsInterventionsModule', {})
 
-            studies = data.get("studies", [])
-            if not studies:
-                break # No more studies to fetch
+                # Extract conditions
+                conditions = []
+                if 'ConditionsModule' in protocol and 'ConditionList' in protocol['ConditionsModule']:
+                    conditions = [c['Condition'] for c in protocol['ConditionsModule']['ConditionList']['Condition']]
 
-            for study in studies:
-                status_module = study['protocolSection']['statusModule']
-                identification_module = study['protocolSection']['identificationModule']
-                conditions_module = study['protocolSection']['conditionsModule']
-                arms_interventions_module = study['protocolSection'].get('armsInterventionsModule', {})
-                design_module = study['protocolSection']['designModule']
-
-                lastUpdatePostDate = status_module.get('lastUpdatePostDateStruct', {}).get('date', '')
-                if not lastUpdatePostDate:
-                    continue # Skip if date is missing
-
-                try:
-                    last_update_date = datetime.strptime(lastUpdatePostDate, "%Y-%m-%d")
-                except ValueError:
-                    continue # Skip if date format is incorrect
-
-                # Filter by date
-                if last_update_date < date_cutoff:
-                    continue
-
-                title = identification_module.get('officialTitle', 'No title provided')
-                nctId = identification_module.get('nctId', 'Unknown')
-                overallStatus = status_module.get('overallStatus', 'Unknown')
-                conditions = ', '.join(conditions_module.get('conditions', ['No conditions listed']))
-                acronym = identification_module.get('acronym', 'Unknown')
-                interventions_list = arms_interventions_module.get('interventions', [])
-                interventions = ', '.join([interv.get('name', 'No intervention name listed') for interv in interventions_list]) if interventions_list else "No interventions listed"
-                studyFirstPostDate = status_module.get('studyFirstPostDateStruct', {}).get('date', 'Unknown Date')
-                studyType = design_module.get('studyType', 'Unknown')
-                phases = ', '.join(design_module.get('phases', ['Not Available']))
-
-                data_list.append({
-                    "NCT ID": nctId,
-                    "Title": title,
-                    "Study First Post Date": studyFirstPostDate,
-                    "Last Update Post Date": lastUpdatePostDate,
-                    "Acronym": acronym,
-                    "Overall Status": overallStatus,
-                    "Conditions": conditions,
-                    "Interventions": interventions,
-                    "Study Type": studyType,
-                    "Phases": phases
-                })
-
-            nextPageToken = data.get('nextPageToken')
-            page_count += 1
-            if not nextPageToken or page_count >= max_pages:
-                break
-
-        except requests.exceptions.RequestException as e:
-            print(f"Network or API error for condition '{condition}': {e}")
-            break
-        except Exception as e:
-            print(f"An unexpected error occurred for condition '{condition}': {e}")
-            break
-
-    # Sort by Last Update Post Date descending after all data is collected
-    data_list.sort(key=lambda x: datetime.strptime(x["Last Update Post Date"], "%Y-%m-%d"), reverse=True)
-    return data_list
+                # Extract interventions
+                interventions = []
+                if 'InterventionList' in arms_interventions_module:
+                    interventions = [i['InterventionName'] for i in arms_interventions_module['InterventionList']['Intervention']]
 
 
+                trial_info = {
+                    "NCT ID": identification_module.get('NCTId', 'N/A'),
+                    "Title": identification_module.get('OfficialTitle', identification_module.get('BriefTitle', 'N/A')),
+                    "Acronym": identification_module.get('Acronym', 'N/A'),
+                    "Overall Status": status_module.get('OverallStatus', 'N/A'),
+                    "Study Type": design_module.get('StudyType', 'N/A'),
+                    "Phases": design_module.get('PhaseList', {}).get('Phase', ['N/A'])[0] if 'PhaseList' in design_module else 'N/A',
+                    "Study First Post Date": status_module.get('StudyFirstPostDate', 'N/A'),
+                    "Last Update Post Date": status_module.get('LastUpdatePostDate', 'N/A'),
+                    "Conditions": ", ".join(conditions) if conditions else "N/A",
+                    "Interventions": ", ".join(interventions) if interventions else "N/A",
+                    # Add more fields as needed based on the API response structure
+                }
+                studies_data.append(trial_info)
+        return studies_data
+    except requests.exceptions.HTTPError as e:
+        print(f"HTTP error fetching data for '{query_term}': {e}")
+        print(f"Response content: {e.response.text}")
+        return []
+    except requests.exceptions.ConnectionError as e:
+        print(f"Connection error fetching data for '{query_term}': {e}")
+        return []
+    except requests.exceptions.Timeout as e:
+        print(f"Timeout error fetching data for '{query_term}': {e}")
+        return []
+    except requests.exceptions.RequestException as e:
+        print(f"An general requests error occurred fetching data for '{query_term}': {e}")
+        return []
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error for '{query_term}': {e}. Response might not be valid JSON.")
+        return []
+    except Exception as e:
+        print(f"An unexpected error occurred processing data for '{query_term}': {e}")
+        return []
 
-### Flask Routes
+
+# --- Routes ---
 
 @app.route('/')
 def index():
-    """Serves the main HTML page from the templates folder."""
-    return render_template('index.html')
+    # Serve index.html directly from the project root
+    # PROJECT_ROOT is where app.py and index.html reside
+    return send_from_directory(PROJECT_ROOT, 'index.html')
 
 @app.route('/api')
-def api_root():
-    """
-    Returns a simple JSON response to indicate the API is running.
-    """
-    return jsonify({"message": "API is running!", "timestamp": datetime.now().isoformat()})
+def api_health_check():
+    """Simple health check endpoint for the API."""
+    return jsonify({"message": "API is running!", "status": "success"})
+
 
 @app.route('/api/search_trials', methods=['POST'])
 def search_trials():
     """
-    API endpoint to search for clinical trials.
-    Expects JSON payload with 'query_terms' (list of strings) and 'months_back' (int).
-    Returns JSON with fetched trial data.
+    Handles the search request for clinical trials.
+    Expects a JSON payload with 'query_terms' (list of strings) and 'months_back' (int).
     """
     data = request.get_json()
-    query_terms = data.get('query_terms', [])
-    months_back = data.get('months_back', 3)
+    query_terms_raw = data.get('query_terms', '')
+    months_back = data.get('months_back', 3) # Default to 3 months
 
-    # --- DEBUGGING: Print value received by backend ---
-    print(f"Backend: Received months_back: {months_back}")
-    # --- END DEBUGGING ---
+    if not query_terms_raw:
+        return jsonify({"error": "No query terms provided."}), 400
+
+    # Split terms by comma and clean up whitespace, remove empty strings
+    query_terms = [term.strip() for term in query_terms_raw.split(',') if term.strip()]
 
     if not query_terms:
-        return jsonify({"error": "No query terms provided"}), 400
+        return jsonify({"error": "Please enter valid condition(s) to search."}), 400
 
-    all_results = {}
+    results = {}
     for term in query_terms:
-        all_results[term] = fetch_trials_python(term, months_back)
+        results[term] = fetch_trials_from_clinicaltrials_gov(term, months_back)
 
-    return jsonify(all_results)
+    return jsonify(results)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) # debug=True is good for development. Set to False for production.
